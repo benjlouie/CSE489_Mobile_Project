@@ -12,6 +12,8 @@ public class MainActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+
+        sendBroadcast(new Intent("RestartBackgroundService")); //use receiver to start service
     }
 
     public void login(View view) {
@@ -24,4 +26,5 @@ public class MainActivity extends AppCompatActivity {
         Intent intent = new Intent(this, Settings.class);
         startActivity(intent);
     }
+
 }
