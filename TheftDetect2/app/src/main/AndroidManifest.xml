@@ -22,7 +22,6 @@
             android:name=".BackgroundService"
             android:enabled="true"
             android:exported="true">
-
         </service>
         <receiver
             android:name=".RestartBackgroundService"
