@@ -4,6 +4,7 @@ import android.app.ActivityManager;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
+import android.util.Log;
 
 public class RestartBackgroundService extends BroadcastReceiver {
 
@@ -13,10 +14,10 @@ public class RestartBackgroundService extends BroadcastReceiver {
     public void onReceive(Context context, Intent intent) {
         mContext = context;
         if(!isMyServiceRunning(BackgroundService.class)) {
-            System.out.println("created new BGService"); //TODO: remove print
+            Log.i("RestartBackgroundServic", "created new BGService");
             context.startService(new Intent(context.getApplicationContext(), BackgroundService.class));
         } else {
-            System.out.println("BGService already running"); //TODO: remove print
+            Log.i("RestartBackgroundServic", "BGService already running");
         }
 
     }

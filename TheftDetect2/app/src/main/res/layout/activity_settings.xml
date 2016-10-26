@@ -24,12 +24,12 @@
             android:layout_alignParentTop="true"
             android:layout_marginTop="15dp"
             android:id="@+id/txt_addEmail"
-            android:hint="new email"
             android:singleLine="false"
             android:selectAllOnFocus="false"
             android:fontFamily="sans-serif"
             android:layout_alignParentStart="true"
-            android:layout_toStartOf="@+id/btn_emailAdd" />
+            android:layout_toStartOf="@+id/btn_emailAdd"
+            android:hint="New Email" />
 
         <Button
             android:text="add email"
@@ -40,47 +40,8 @@
             android:layout_alignParentEnd="true"
             android:layout_alignTop="@+id/txt_addEmail"
             android:layout_alignBottom="@+id/txt_addEmail"
-            android:onClick="addEmail" />
-
-        <CheckBox
-            android:text="GPS Profiling"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:id="@+id/checkBox3"
-            android:textAlignment="center"
-            android:button="@null"
-            android:drawableRight="?android:attr/listChoiceIndicatorMultiple"
-            android:checked="false"
-            android:duplicateParentState="false"
-            android:layout_below="@+id/checkBox2"
-            android:layout_alignEnd="@+id/checkBox2" />
-
-        <CheckBox
-            android:text="Facial Recognition"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:id="@+id/checkBox4"
-            android:textAlignment="center"
-            android:button="@null"
-            android:drawableRight="?android:attr/listChoiceIndicatorMultiple"
-            android:checked="false"
-            android:duplicateParentState="false"
-            android:layout_below="@+id/checkBox3"
-            android:layout_alignEnd="@+id/checkBox3" />
-
-        <CheckBox
-            android:text="Accelerometer Profiling"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:id="@+id/checkBox2"
-            android:textAlignment="center"
-            android:button="@null"
-            android:drawableRight="?android:attr/listChoiceIndicatorMultiple"
-            android:checked="false"
-            android:duplicateParentState="false"
-            android:layout_marginTop="77dp"
-            android:layout_below="@+id/txt_addEmail"
-            android:layout_centerHorizontal="true" />
+            android:onClick="addEmail"
+            android:layout_toEndOf="@+id/spnr_emails" />
 
         <Spinner
             android:layout_width="match_parent"
@@ -100,6 +61,80 @@
             android:layout_below="@+id/btn_emailAdd"
             android:layout_alignParentEnd="true"
             android:onClick="removeEmail" />
+
+        <EditText
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:inputType="phone"
+            android:ems="10"
+            android:id="@+id/txt_addPhone"
+            android:layout_below="@+id/spnr_emails"
+            android:layout_alignParentStart="true"
+            android:layout_toStartOf="@+id/btn_phoneAdd"
+            android:hint="New SMS Number" />
+
+        <Button
+            android:text="Add Phone"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:id="@+id/btn_phoneAdd"
+            android:layout_below="@+id/spnr_emails"
+            android:layout_alignBottom="@+id/txt_addPhone"
+            android:layout_alignParentEnd="true"
+            android:layout_toEndOf="@+id/spnr_emails"
+            android:onClick="addPhone" />
+
+        <Spinner
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:id="@+id/spnr_phones"
+            android:layout_below="@+id/txt_addPhone"
+            android:layout_alignParentStart="true"
+            android:layout_toStartOf="@+id/btn_phoneAdd"
+            android:layout_alignBottom="@+id/btn_removePhone" />
+
+        <Button
+            android:text="Remove Phone"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:id="@+id/btn_removePhone"
+            android:layout_below="@+id/btn_phoneAdd"
+            android:layout_alignParentEnd="true"
+            android:layout_toEndOf="@+id/txt_addPhone"
+            android:textSize="13sp"
+            android:onClick="removePhone" />
+
+        <Button
+            android:text="Change Password"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:id="@+id/btn_changePassword"
+            android:layout_alignTop="@+id/txt_changePassword"
+            android:layout_alignParentEnd="true"
+            android:layout_toEndOf="@+id/spnr_phones"
+            android:onClick="changePassword" />
+
+        <EditText
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:ems="10"
+            android:id="@+id/txt_changePasswordConfirm"
+            android:hint="Confirm Password"
+            android:inputType="textPassword"
+            android:layout_below="@+id/btn_changePassword"
+            android:layout_alignParentStart="true"
+            android:layout_toStartOf="@+id/btn_changePassword" />
+
+        <EditText
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:inputType="textPassword"
+            android:ems="10"
+            android:id="@+id/txt_changePassword"
+            android:hint="New Password"
+            android:layout_marginBottom="56dp"
+            android:layout_alignParentBottom="true"
+            android:layout_alignParentStart="true" />
 
     </RelativeLayout>
 </RelativeLayout>
