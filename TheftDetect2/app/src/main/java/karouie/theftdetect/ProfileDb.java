@@ -36,7 +36,7 @@ public class ProfileDb extends SQLiteOpenHelper {
     public static final String SQL_CREATE_TABLE_GPS = "CREATE TABLE " + TABLE_GPS + " ("
             + TABLE_GPS_COL1 + " REAL, "
             + TABLE_GPS_COL2 + " REAL, "
-            + TABLE_GPS_COL3 + " DATETIME, "
+            + TABLE_GPS_COL3 + " DATETIME, " //2007-01-01 10:00:00
             + TABLE_GPS_COL4 + " REAL, "
             + "PRIMARY KEY (" + TABLE_GPS_COL1 + ", " + TABLE_GPS_COL2 + ")" //set primary key as composite of latitude and longitude
             + ");";
@@ -126,18 +126,18 @@ public class ProfileDb extends SQLiteOpenHelper {
         return true;
     }
 
-    public boolean insertGps(double latitude, double longitude, String dateTime, double radius) {
+    public boolean insertGps(GpsData data) {
         SQLiteDatabase db = this.getWritableDatabase();
         ContentValues content = new ContentValues();
-        content.put(TABLE_GPS_COL1, latitude);
-        content.put(TABLE_GPS_COL2, longitude);
-        content.put(TABLE_GPS_COL3, dateTime);
-        content.put(TABLE_GPS_COL4, radius);
+        content.put(TABLE_GPS_COL1, data.latitude);
+        content.put(TABLE_GPS_COL2, data.longitude);
+        content.put(TABLE_GPS_COL3, data.dateTime);
+        content.put(TABLE_GPS_COL4, data.radius);
 
         long row = db.insert(TABLE_GPS, null, content);
         if(row == -1) {
             //didn't insert correctly
-            Log.e("ProfileDb.insertGps()", "did not insert gps data correctly, la:" + latitude + " lo:" + longitude + " dt:" + dateTime + " r:" + radius);
+            Log.e("ProfileDb.insertGps()", "did not insert gps data correctly, la:" + data.latitude + " lo:" + data.longitude + " dt:" + data.dateTime + " r:" + data.radius);
             return false;
         }
         return true;
@@ -171,17 +171,17 @@ public class ProfileDb extends SQLiteOpenHelper {
         return true;
     }
 
-    public boolean insertGpsOutside(double latitude, double longitude, String dateTime) {
+    public boolean insertGpsOutside(GpsData data) {
         SQLiteDatabase db = this.getWritableDatabase();
         ContentValues content = new ContentValues();
-        content.put(TABLE_GPSOUTSIDE_COL1, latitude);
-        content.put(TABLE_GPSOUTSIDE_COL2, longitude);
-        content.put(TABLE_GPSOUTSIDE_COL3, dateTime);
+        content.put(TABLE_GPSOUTSIDE_COL1, data.latitude);
+        content.put(TABLE_GPSOUTSIDE_COL2, data.longitude);
+        content.put(TABLE_GPSOUTSIDE_COL3, data.dateTime);
 
         long row = db.insert(TABLE_GPSOUTSIDE, null, content);
         if(row == -1) {
             //didn't insert correctly
-            Log.e("ProfileDb.insertGpsO()", "did not insert dps data correctly, la:" + latitude + " lo:" + longitude + " dt:" + dateTime);
+            Log.e("ProfileDb.insertGpsO()", "did not insert dps data correctly, la:" + data.latitude + " lo:" + data.longitude + " dt:" + data.dateTime);
             return false;
         }
         return true;
@@ -270,13 +270,69 @@ public class ProfileDb extends SQLiteOpenHelper {
     }
 
     //TODO: make class for both types so data can be returned as arraylist instead of cursor
-    public Cursor getAllGps() {
+    public ArrayList<GpsData> getAllGps() {
         SQLiteDatabase db = this.getReadableDatabase();
-        return db.rawQuery("SELECT * FROM " + TABLE_GPS, null);
+        Cursor res = db.rawQuery("SELECT * FROM " + TABLE_GPS, null);
+        ArrayList<GpsData> points = new ArrayList<>();
+        while(res.moveToNext()) {
+            // 1 latitude, 2 longitude, 3 datetime, 4 radius
+            points.add(new GpsData(res.getDouble(0), res.getDouble(1), res.getString(2), res.getDouble(3)));
+        }
+
+        res.close();
+        return points;
     }
 
-    public Cursor getAllGpsOutside() {
+    public ArrayList<GpsData> getAllGpsOutside() {
         SQLiteDatabase db = this.getReadableDatabase();
-        return db.rawQuery("SELECT * FROM " + TABLE_GPSOUTSIDE, null);
+        Cursor res = db.rawQuery("SELECT * FROM " + TABLE_GPSOUTSIDE, null);
+        ArrayList<GpsData> points = new ArrayList<>();
+        while(res.moveToNext()) {
+            // 1 latitude, 2 longitude, 3 datetime, radius = 0
+            points.add(new GpsData(res.getDouble(0), res.getDouble(1), res.getString(2), 0));
+        }
+
+        res.close();
+        return points;
+    }
+
+    public ArrayList<GpsData> getGPSWithin(double startLat, double endLat, double startLong, double endLong) {
+        double lat1 = Math.min(startLat, endLat);
+        double lat2 = Math.max(startLat, endLat);
+        double long1 = Math.min(startLong, endLong);
+        double long2 = Math.max(startLong, endLong);
+        SQLiteDatabase db = this.getReadableDatabase();
+        ArrayList<GpsData> points = new ArrayList<>();
+        Cursor res = db.rawQuery("SELECT * FROM " + TABLE_GPS
+                + " WHERE (" + TABLE_GPS_COL1 + " BETWEEN " + lat1 + " and " + lat2 + ")"
+                + " and (" + TABLE_GPS_COL2 + " BETWEEN " + long1 + " and " + long2 + ")"
+                , null);
+        while(res.moveToNext()) {
+            // 1 latitude, 2 longitude, 3 datetime, 4 radius
+            points.add(new GpsData(res.getDouble(0), res.getDouble(1), res.getString(2), res.getDouble(3)));
+        }
+
+        res.close();
+        return points;
+    }
+
+    public ArrayList<GpsData> getGPSOutsideWithin(double startLat, double endLat, double startLong, double endLong) {
+        double lat1 = Math.min(startLat, endLat);
+        double lat2 = Math.max(startLat, endLat);
+        double long1 = Math.min(startLong, endLong);
+        double long2 = Math.max(startLong, endLong);
+        SQLiteDatabase db = this.getReadableDatabase();
+        ArrayList<GpsData> points = new ArrayList<>();
+        Cursor res = db.rawQuery("SELECT * FROM " + TABLE_GPSOUTSIDE
+                + " WHERE (" + TABLE_GPSOUTSIDE_COL1 + " BETWEEN " + lat1 + " and " + lat2 + ")"
+                + " and (" + TABLE_GPSOUTSIDE_COL2 + " BETWEEN " + long1 + " and " + long2 + ")"
+                , null);
+        while(res.moveToNext()) {
+            // 1 latitude, 2 longitude, 3 datetime, radius = 0
+            points.add(new GpsData(res.getDouble(0), res.getDouble(1), res.getString(2), 0));
+        }
+
+        res.close();
+        return points;
     }
 }

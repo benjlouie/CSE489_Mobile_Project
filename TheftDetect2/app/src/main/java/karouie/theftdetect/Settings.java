@@ -1,6 +1,7 @@
 package karouie.theftdetect;
 
 import android.content.Context;
+import android.content.Intent;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.util.Log;
@@ -169,5 +170,10 @@ public class Settings extends AppCompatActivity {
         } else {
             Toast.makeText(context, "Passwords don't match", Toast.LENGTH_SHORT).show();
         }
+    }
+
+    public void goToLocations(View view) {
+        Intent intent = new Intent(this, Locations.class);
+        startActivity(intent);
     }
 }

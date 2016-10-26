@@ -132,9 +132,18 @@
             android:ems="10"
             android:id="@+id/txt_changePassword"
             android:hint="New Password"
-            android:layout_marginBottom="56dp"
-            android:layout_alignParentBottom="true"
+            android:layout_centerVertical="true"
             android:layout_alignParentStart="true" />
+
+        <Button
+            android:text="Goto Locations Page"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:id="@+id/btn_goToLocationsPage"
+            android:layout_alignParentBottom="true"
+            android:layout_centerHorizontal="true"
+            android:layout_marginBottom="56dp"
+            android:onClick="goToLocations" />
 
     </RelativeLayout>
 </RelativeLayout>
