@@ -35,6 +35,14 @@ public class FirstLoginActivity extends AppCompatActivity {
             //continue to settings screen
             ProfileDb db = new ProfileDb(this);
             if(db.setPassword(pwd)) {
+                //sset start time for trial period
+                if(!db.setTrialTime(System.currentTimeMillis())) {
+                    Log.e("firstLogin()", "error setting trial time");
+                }
+                if(!db.setTrialRun(true)) {
+                    Log.e("firstLogin()", "error setting run to true");
+                }
+
                 Toast.makeText(context, "Password set", Toast.LENGTH_SHORT).show();
                 Intent intent = new Intent(this, Settings.class);
                 startActivity(intent);

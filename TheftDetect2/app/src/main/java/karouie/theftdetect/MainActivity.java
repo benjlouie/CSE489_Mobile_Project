@@ -1,5 +1,6 @@
 package karouie.theftdetect;
 
+import android.Manifest;
 import android.content.Context;
 import android.content.Intent;
 import android.support.v7.app.AppCompatActivity;
@@ -15,7 +16,6 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
 
         sendBroadcast(new Intent("RestartBackgroundService")); //use receiver to start service
-
         ProfileDb db = new ProfileDb(this);
         if(db.getPassword().equals("")) {
             //goto first login page to set password
@@ -32,6 +32,7 @@ public class MainActivity extends AppCompatActivity {
 
         if(db.getPassword().equals(password.getText().toString())) {
             //password match, login
+            password.setText("");
             Intent intent = new Intent(this, Settings.class);
             startActivity(intent);
         } else {

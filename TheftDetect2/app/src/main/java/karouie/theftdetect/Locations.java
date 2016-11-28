@@ -1,5 +1,9 @@
 package karouie.theftdetect;
 
+import android.content.Context;
+import android.location.Location;
+import android.location.LocationManager;
+import android.os.Handler;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.util.Log;
@@ -11,11 +15,31 @@ import java.util.ArrayList;
 
 public class Locations extends AppCompatActivity {
 
+    private long locationEntries;
+    final Handler h = new Handler();
+    final int delay = 5000; //milliseconds
+    final Runnable runnable = new Runnable() {
+        @Override
+        public void run() {
+            updateLocations();
+            h.postDelayed(this, delay);
+        }
+    };
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+        locationEntries = 0;
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_locations);
         updateLocations();
+
+        h.postDelayed(runnable, delay);
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        h.removeCallbacks(runnable);
     }
 
     public void addLocation(View view) {
@@ -25,7 +49,7 @@ public class Locations extends AppCompatActivity {
         double lon = Double.parseDouble(longitude.getText().toString());
         ProfileDb db = new ProfileDb(this);
 
-        if(db.insertGps(new GpsData(lat, lon, "2016-11-26 17:32:15", 0))) {
+        if(db.insertGps(new GpsData(lat, lon, System.currentTimeMillis(), 0))) {
             latitude.setText("");
             longitude.setText("");
             Log.d("Locations.addLocation", "inserted location correctly");
@@ -78,12 +102,17 @@ public class Locations extends AppCompatActivity {
     public void updateLocations() {
         ProfileDb db = new ProfileDb(this);
         ArrayList<GpsData> points = db.getAllGps();
-        Log.d("Locations.updateLocs", "results: " + points.size() + " items");
+        if(points.size() == locationEntries) {
+            //no need to update
+            Log.d("Locations.updatelocs", "no change in location Entries");
+            return;
+        }
+        locationEntries = points.size();
 
         TextView locations = (TextView) findViewById(R.id.txtv_locationList);
         StringBuilder sb = new StringBuilder(400);
         for(GpsData data : points) {
-            sb.append("" + data.latitude + "\t" + data.longitude + "\n");
+            sb.append("" + data.latitude + "\t" + data.longitude + "\t" + data.dateTime + "\n");
         }
         locations.setText(sb.toString());
     }

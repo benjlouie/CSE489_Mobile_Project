@@ -7,14 +7,14 @@ package karouie.theftdetect;
 public class GpsData {
     public double latitude;
     public double longitude;
-    public String dateTime;
+    public long dateTime;
     public double radius;
 
-    public GpsData(double latitude, double longitude, String dateTime) {
+    public GpsData(double latitude, double longitude, long dateTime) {
         this(latitude, longitude, dateTime, 0);
     }
 
-    public GpsData(double latitude, double longitude, String dateTime, double radius) {
+    public GpsData(double latitude, double longitude, long dateTime, double radius) {
         this.latitude = latitude;
         this.longitude = longitude;
         this.dateTime = dateTime;

@@ -172,6 +172,9 @@ public class Settings extends AppCompatActivity {
         }
     }
 
+    //TODO: have indicator that shows if there is outside location (and not trial period), only go if there are some
+    //TODO: change location page to show outside points and be able to accept them (all or individual)
+    //TODO: need table or something to hold average radius for when you insert outside-gps point
     public void goToLocations(View view) {
         Intent intent = new Intent(this, Locations.class);
         startActivity(intent);

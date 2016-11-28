@@ -27,6 +27,20 @@ public class ProfileDb extends SQLiteOpenHelper {
             + TABLE_PASSWORD_COL1 + " TEXT PRIMARY KEY"
             + ");";
 
+    public static final String TABLE_TRIALTIME = "table_trialtime";
+    public static final String TABLE_TRIALTIME_COL1 = "trialtime";
+    public static final String SQL_DELETE_TABLE_TRIALTIME = "DROP TABLE IF EXISTS " + TABLE_TRIALTIME;
+    public static final String SQL_CREATE_TABLE_TRIALTIME = "CREATE TABLE " + TABLE_TRIALTIME + " ("
+            + TABLE_TRIALTIME_COL1 + " INTEGER PRIMARY KEY"
+            + ");";
+
+    public static final String TABLE_TRIALRUN = "table_trialrun";
+    public static final String TABLE_TRIALRUN_COL1 = "trialrun";
+    public static final String SQL_DELETE_TABLE_TRIALRUN = "DROP TABLE IF EXISTS " + TABLE_TRIALRUN;
+    public static final String SQL_CREATE_TABLE_TRIALRUN = "CREATE TABLE " + TABLE_TRIALRUN + " ("
+            + TABLE_TRIALRUN_COL1 + " INTEGER PRIMARY KEY"
+            + ");";
+
     public static final String TABLE_GPS = "table_gps";
     public static final String TABLE_GPS_COL1 = "latitude";
     public static final String TABLE_GPS_COL2 = "longitude";
@@ -36,7 +50,7 @@ public class ProfileDb extends SQLiteOpenHelper {
     public static final String SQL_CREATE_TABLE_GPS = "CREATE TABLE " + TABLE_GPS + " ("
             + TABLE_GPS_COL1 + " REAL, "
             + TABLE_GPS_COL2 + " REAL, "
-            + TABLE_GPS_COL3 + " DATETIME, " //2007-01-01 10:00:00
+            + TABLE_GPS_COL3 + " INTEGER, " //2007-01-01 10:00:00
             + TABLE_GPS_COL4 + " REAL, "
             + "PRIMARY KEY (" + TABLE_GPS_COL1 + ", " + TABLE_GPS_COL2 + ")" //set primary key as composite of latitude and longitude
             + ");";
@@ -63,7 +77,7 @@ public class ProfileDb extends SQLiteOpenHelper {
     public static final String SQL_CREATE_TABLE_GPSOUTSIDE = "CREATE TABLE " + TABLE_GPSOUTSIDE + " ("
             + TABLE_GPSOUTSIDE_COL1 + " REAL, "
             + TABLE_GPSOUTSIDE_COL2 + " REAL, "
-            + TABLE_GPSOUTSIDE_COL3 + " DATETIME, "
+            + TABLE_GPSOUTSIDE_COL3 + " INTEGER, "
             + "PRIMARY KEY (" + TABLE_GPSOUTSIDE_COL1 + ", " + TABLE_GPSOUTSIDE_COL2 + ")" //set primary key as composite of latitude and longitude
             + ");";
 
@@ -75,6 +89,8 @@ public class ProfileDb extends SQLiteOpenHelper {
     @Override
     public void onCreate(SQLiteDatabase db) {
         db.execSQL(SQL_CREATE_TABLE_PASSWORD);
+        db.execSQL(SQL_CREATE_TABLE_TRIALTIME);
+        db.execSQL(SQL_CREATE_TABLE_TRIALRUN);
         db.execSQL(SQL_CREATE_TABLE_GPS);
         db.execSQL(SQL_CREATE_TABLE_EMAILS);
         db.execSQL(SQL_CREATE_TABLE_PHONES);
@@ -85,6 +101,8 @@ public class ProfileDb extends SQLiteOpenHelper {
     public void onUpgrade(SQLiteDatabase db, int oldVersion, int newVersion) {
         // on change discard everything and start over
         db.execSQL(SQL_DELETE_TABLE_PASSWORD);
+        db.execSQL(SQL_DELETE_TABLE_TRIALTIME);
+        db.execSQL(SQL_DELETE_TABLE_TRIALRUN);
         db.execSQL(SQL_DELETE_TABLE_GPS);
         db.execSQL(SQL_DELETE_TABLE_EMAILS);
         db.execSQL(SQL_DELETE_TABLE_PHONES);
@@ -126,6 +144,62 @@ public class ProfileDb extends SQLiteOpenHelper {
         return true;
     }
 
+    public boolean setTrialTime(long trialStartTime) {
+        SQLiteDatabase db = this.getWritableDatabase();
+        //delete previous time
+        Cursor res = db.rawQuery("SELECT * FROM " + TABLE_TRIALTIME, null);
+        if(res.moveToFirst()) {
+            int numDeleted = db.delete(TABLE_TRIALTIME, TABLE_TRIALTIME_COL1 + " = ?", new String[] {res.getString(0)}); //remove all rows (should be one row here)
+            if(numDeleted != 1) {
+                //didn't delete 1 password, problem
+                Log.e("ProfileDb.setTrialT()", "did not delete previous time \"" + res.getString(0) + "\" correctly");
+                return false;
+            }
+        } else {
+            //no password to delete (first time)
+            Log.d("ProfileDb.setTrialT()", "first trial time being set...");
+        }
+
+        ContentValues content = new ContentValues();
+        content.put(TABLE_TRIALTIME_COL1, trialStartTime);
+        long row = db.insert(TABLE_TRIALTIME, null, content);
+        if(row  == -1 || row > 1) {
+            Log.e("ProfileDb.setTrialT()", "did not insert new time correctly, gave: " + row);
+            return false;
+        }
+        return true;
+    }
+
+    public boolean setTrialRun(boolean running) {
+        SQLiteDatabase db = this.getWritableDatabase();
+        //delete previous time
+        Cursor res = db.rawQuery("SELECT * FROM " + TABLE_TRIALTIME, null);
+        if(res.moveToFirst()) {
+            int numDeleted = db.delete(TABLE_TRIALRUN, TABLE_TRIALRUN_COL1 + " = ?", new String[] {res.getString(0)}); //remove all rows (should be one row here)
+            if(numDeleted != 1) {
+                //didn't delete 1 password, problem
+                Log.e("ProfileDb.setTrialR()", "did not delete previous run \"" + res.getString(0) + "\" correctly");
+                return false;
+            }
+        } else {
+            //no password to delete (first time)
+            Log.d("ProfileDb.setTrialR()", "first time trial run being set...");
+        }
+
+        ContentValues content = new ContentValues();
+        if(running) {
+            content.put(TABLE_TRIALTIME_COL1, 1);
+        } else {
+            content.put(TABLE_TRIALTIME_COL1, 0);
+        }
+        long row = db.insert(TABLE_TRIALTIME, null, content);
+        if(row  == -1 || row > 1) {
+            Log.e("ProfileDb.setTrialT()", "did not insert new run correctly, gave: " + row);
+            return false;
+        }
+        return true;
+    }
+
     public boolean insertGps(GpsData data) {
         SQLiteDatabase db = this.getWritableDatabase();
         ContentValues content = new ContentValues();
@@ -133,6 +207,12 @@ public class ProfileDb extends SQLiteOpenHelper {
         content.put(TABLE_GPS_COL2, data.longitude);
         content.put(TABLE_GPS_COL3, data.dateTime);
         content.put(TABLE_GPS_COL4, data.radius);
+
+        ArrayList<GpsData> closePoints = getGPSWithin(data.latitude, data.latitude, data.longitude, data.longitude);
+        if(closePoints.size() > 0) {
+            Log.e("ProfileDb.insertGps()", "lat/lng pair already exists, la:" + data.latitude + " lo:" + data.longitude + " dt:" + data.dateTime + " r:" + data.radius);
+            return false;
+        }
 
         long row = db.insert(TABLE_GPS, null, content);
         if(row == -1) {
@@ -178,6 +258,12 @@ public class ProfileDb extends SQLiteOpenHelper {
         content.put(TABLE_GPSOUTSIDE_COL2, data.longitude);
         content.put(TABLE_GPSOUTSIDE_COL3, data.dateTime);
 
+        ArrayList<GpsData> closePoints = getGPSOutsideWithin(data.latitude, data.latitude, data.longitude, data.longitude);
+        if(closePoints.size() > 0) {
+            Log.e("ProfileDb.insertGpsO()", "lat/lng pair already exists, la:" + data.latitude + " lo:" + data.longitude + " dt:" + data.dateTime + " r:" + data.radius);
+            return false;
+        }
+
         long row = db.insert(TABLE_GPSOUTSIDE, null, content);
         if(row == -1) {
             //didn't insert correctly
@@ -192,7 +278,7 @@ public class ProfileDb extends SQLiteOpenHelper {
 
         //get previous data
         Cursor res = db.rawQuery("SELECT * FROM " + TABLE_GPS
-                + " WHERE (" + TABLE_GPS_COL1 + " = " + latitude  + ")"
+                + " WHERE (" + TABLE_GPS_COL1 + " = " + latitude + ")"
                 + " AND   (" + TABLE_GPS_COL2 + " = " + longitude + ")", null);
         if(res.moveToFirst()) {
             //got the data row
@@ -233,6 +319,11 @@ public class ProfileDb extends SQLiteOpenHelper {
                 , new String[] {Double.toString(latitude), Double.toString(longitude)});
     }
 
+    public int deleteAllGpsOutside() {
+        SQLiteDatabase db = this.getWritableDatabase();
+        return db.delete(TABLE_GPSOUTSIDE, null, null);
+    }
+
     public String getPassword() {
         SQLiteDatabase db = this.getReadableDatabase();
         Cursor res = db.rawQuery("SELECT * FROM " + TABLE_PASSWORD, null);
@@ -243,6 +334,35 @@ public class ProfileDb extends SQLiteOpenHelper {
         }
         res.close();
         return "";
+    }
+
+    public long getTrialTime() {
+        SQLiteDatabase db = this.getReadableDatabase();
+        Cursor res = db.rawQuery("SELECT * FROM " + TABLE_TRIALTIME, null);
+        if(res.moveToFirst()) {
+            long pass = res.getLong(0);
+            res.close();
+            return pass;
+        }
+        res.close();
+        return 0L;
+    }
+
+    public boolean getTrialRun() {
+        SQLiteDatabase db = this.getReadableDatabase();
+        Cursor res = db.rawQuery("SELECT * FROM " + TABLE_TRIALRUN, null);
+        if(res.moveToFirst()) {
+            boolean pass;
+            if(res.getInt(0) == 0) {
+                pass = false;
+            } else {
+                pass = true;
+            }
+            res.close();
+            return pass;
+        }
+        res.close();
+        return true;
     }
 
     public ArrayList<String> getAllEmails() {
@@ -276,7 +396,7 @@ public class ProfileDb extends SQLiteOpenHelper {
         ArrayList<GpsData> points = new ArrayList<>();
         while(res.moveToNext()) {
             // 1 latitude, 2 longitude, 3 datetime, 4 radius
-            points.add(new GpsData(res.getDouble(0), res.getDouble(1), res.getString(2), res.getDouble(3)));
+            points.add(new GpsData(res.getDouble(0), res.getDouble(1), res.getLong(2), res.getDouble(3)));
         }
 
         res.close();
@@ -289,7 +409,7 @@ public class ProfileDb extends SQLiteOpenHelper {
         ArrayList<GpsData> points = new ArrayList<>();
         while(res.moveToNext()) {
             // 1 latitude, 2 longitude, 3 datetime, radius = 0
-            points.add(new GpsData(res.getDouble(0), res.getDouble(1), res.getString(2), 0));
+            points.add(new GpsData(res.getDouble(0), res.getDouble(1), res.getLong(2), 0));
         }
 
         res.close();
@@ -309,7 +429,7 @@ public class ProfileDb extends SQLiteOpenHelper {
                 , null);
         while(res.moveToNext()) {
             // 1 latitude, 2 longitude, 3 datetime, 4 radius
-            points.add(new GpsData(res.getDouble(0), res.getDouble(1), res.getString(2), res.getDouble(3)));
+            points.add(new GpsData(res.getDouble(0), res.getDouble(1), res.getLong(2), res.getDouble(3)));
         }
 
         res.close();
@@ -329,7 +449,7 @@ public class ProfileDb extends SQLiteOpenHelper {
                 , null);
         while(res.moveToNext()) {
             // 1 latitude, 2 longitude, 3 datetime, radius = 0
-            points.add(new GpsData(res.getDouble(0), res.getDouble(1), res.getString(2), 0));
+            points.add(new GpsData(res.getDouble(0), res.getDouble(1), res.getLong(2), 0));
         }
 
         res.close();
