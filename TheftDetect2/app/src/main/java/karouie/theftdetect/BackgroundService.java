@@ -1,24 +1,17 @@
 package karouie.theftdetect;
 
-import android.Manifest;
-import android.app.Activity;
-import android.app.AlertDialog;
 import android.app.Service;
 import android.content.Context;
 import android.content.Intent;
-import android.content.pm.PackageManager;
-import android.database.Cursor;
 import android.location.Criteria;
 import android.location.Location;
-import android.location.LocationListener;
 import android.location.LocationManager;
 import android.os.Bundle;
+import android.os.Handler;
 import android.os.IBinder;
-import android.provider.*;
-import android.provider.Settings;
+import android.os.Looper;
+import android.os.Message;
 import android.support.annotation.Nullable;
-import android.support.v4.app.ActivityCompat;
-import android.support.v4.content.ContextCompat;
 import android.util.Log;
 
 import java.util.ArrayList;
@@ -79,13 +72,34 @@ public class BackgroundService extends Service {
     public int onStartCommand(Intent intent, int flags, int startId) {
         //do stuff here
 
+        Handler gpsHandler = new Handler(Looper.getMainLooper()) {
+            @Override
+            public void handleMessage(Message message) {
+                //TODO: handle the message method calls here
+                switch (message.arg1) {
+                    case 0:
+                        startListeners();
+                        break;
+                    case 1:
+                        stopListeners();
+                        break;
+                    default:
+                        Log.e("handleMessage", "bad message arg: " + message.arg1);
+                        break;
+                }
+            }
+        };
+
+        //START SERVICE THREAD
         if (bg_operations == null) {
             Log.i("BackGorundService.start", "created new bg_thread");
-            bg_operations = new BackgroundThread(this, 10); //10 minutes for testing purposes
+            //TODO: set actual time intervals here (every hour?)
+            bg_operations = new BackgroundThread(this, gpsHandler, 30); //30 minutes for testing purposes
         }
         if (!bg_operations.isAlive()) {
             Log.i("BackGorundService.start", "starting bg_thread");
             bg_operations.updateContext(this);
+            bg_operations.updateHandler(gpsHandler);
             bg_operations.start();
         } else {
             Log.i("BackGorundService.start", "thread already going");
@@ -161,19 +175,25 @@ public class BackgroundService extends Service {
 
 class BackgroundThread extends Thread {
     private Context context;
+    Handler gpsHandler;
     private Location previousLocation;
     private long sleepTime;
-    private final long LOCATION_TEST_INTERVAL = 5000; //5 sec
-    private final long TRIAL_PERIOD_TIME = 3600000;
-    private final double MAX_LAT_DIFF = 0.1;
-    private final double MAX_LNG_DIFF = 0.1;
+    private final long LOCATION_TEST_INTERVAL = 30000; //30 sec
+    //private final long LOCATION_TEST_INTERVAL = 5000; //5 sec
+    private final long TRIAL_PERIOD_TIME = 43200000; //12 hours
+    //private final long TRIAL_PERIOD_TIME = 3600000; //1 hour
+    //private final long TRIAL_PERIOD_TIME = 60000; //1 min
+    //private final double MAX_LAT_DIFF = 0.1;
+    //private final double MAX_LNG_DIFF = 0.1;
+    private final double MAX_NEARBY_POINTS = 5;
 
-    BackgroundThread(Context context) {
-        this(context, 10);
+    BackgroundThread(Context context, Handler gpsHandler) {
+        this(context, gpsHandler, 10);
     }
 
-    BackgroundThread(Context context, long sleepTime_mins) {
+    BackgroundThread(Context context, Handler gpsHandler, long sleepTime_mins) {
         this.context = context;
+        this.gpsHandler = gpsHandler;
         sleepTime = sleepTime_mins * 60000;
         //sleepTime = 5000; //5 sec
     }
@@ -181,21 +201,29 @@ class BackgroundThread extends Thread {
     public void updateContext(Context context) {
         this.context = context;
     }
+    public void updateHandler(Handler newHandle) {
+        this.gpsHandler = newHandle;
+    }
 
     @Override
     public void run() {
         ProfileDb db = new ProfileDb(context);
         boolean duringTrial = db.getTrialRun();
+        long trialStartTime = db.getTrialTime();
 
         //collect data and test for theft here
         while (true) {
             Location location = getLocation();
-            long trialStartTime = db.getTrialTime();
             long curTime = System.currentTimeMillis();
 
             if(duringTrial) {
                 addToTrial(location);
-                if (curTime - trialStartTime > TRIAL_PERIOD_TIME) {
+                if(trialStartTime == 0L) {
+                    trialStartTime = db.getTrialTime();
+                    Log.d("run()", "trialStartTime: " + trialStartTime);
+                } else if ((curTime - trialStartTime) > TRIAL_PERIOD_TIME) {
+                    Log.d("run()", "startTime: " + trialStartTime);
+                    Log.d("run()", "curTime: " + curTime);
                     duringTrial = false;
                     transferModel();
                     db.setTrialRun(false);
@@ -204,7 +232,6 @@ class BackgroundThread extends Thread {
                 runModel(location);
             }
 
-            serviceMain();
             try {
                 Thread.sleep(sleepTime);
             } catch (InterruptedException e) {
@@ -245,7 +272,8 @@ class BackgroundThread extends Thread {
         }
         avgRadius /= locs.size();
 
-        //TODO: determine what size should be put as radius for all points
+        //set default radius for all future points
+        db.setDefaultRadius(avgRadius);
 
         //transfer locations to other db table
         for(GpsData loc : locs) {
@@ -259,21 +287,32 @@ class BackgroundThread extends Thread {
         double lat = location.getLatitude();
         double lng = location.getLongitude();
         //get nearby locations
-        ArrayList<GpsData> nearbyLocs = db.getGPSWithin(lat - MAX_LAT_DIFF, lat + MAX_LAT_DIFF,
-                lng - MAX_LNG_DIFF, lng + MAX_LNG_DIFF);
+        double maxLatDiff = db.getDefaultRadius() * 100;
+        double maxLngDiff = maxLatDiff;
+        ArrayList<GpsData> nearbyLocs = db.getGPSWithin(lat - maxLatDiff, lat + maxLatDiff,
+                lng - maxLngDiff, lng + maxLngDiff);
 
         //test if cur location is within any of the nearby points
         boolean withinMap = false;
-        for(GpsData point : nearbyLocs) {
-            double latDist = Math.abs(location.getLatitude() - point.latitude);
-            double lngDist = Math.abs(location.getLongitude() - point.longitude);
+        for(int i = 0; i < nearbyLocs.size(); ) {
+            GpsData point = nearbyLocs.get(i);
+            double latDist = Math.abs(lat - point.latitude);
+            double lngDist = Math.abs(lng - point.longitude);
             double distance = Math.sqrt(latDist * latDist + lngDist * lngDist);
             if(distance < point.radius) {
                 withinMap = true;
+                i++;
+            } else {
+                nearbyLocs.remove(i);
             }
         }
         if(withinMap) {
-            //TODO: within nearby points, do something
+            if(nearbyLocs.size() > MAX_NEARBY_POINTS) {
+                //TODO: have it prune points and set an appropriate radius
+            }
+            //for now just add the point with default radius
+            double radius = db.getDefaultRadius();
+            db.insertGps(new GpsData(lat, lng, location.getTime(), radius));
         } else {
             //outside nearby points, or nothing nearby
             //add to gpsOutside
@@ -285,7 +324,10 @@ class BackgroundThread extends Thread {
         BackgroundService bg = (BackgroundService) context;
         Location location;
 
-        bg.startListeners();
+        //start gps listeners
+        Message message = gpsHandler.obtainMessage(0, 0, 0);
+        message.sendToTarget();
+
         location = bg.getLocation();
         while(location == null
                 || (location.getLatitude() == 0.0 && location.getLongitude() == 0.0)
@@ -295,44 +337,17 @@ class BackgroundThread extends Thread {
             } catch (InterruptedException e) {
                 e.printStackTrace();
             }
+
             location = bg.getLocation();
         }
-        bg.stopListeners();
+        //stop gps listeners
+        message = gpsHandler.obtainMessage(0, 1, 0);
+        message.sendToTarget();
+
+        Log.d("getLocation", "got new location: " + location.getLatitude() + " " + location.getLongitude());
+        previousLocation = new Location(location); //important, don't just prevLoc = loc
 
         return location;
-    }
-
-    //TODO: set up everything to handle the gps algorithm stuff
-    public void serviceMain() {
-        BackgroundService bg = (BackgroundService) context;
-        Location location = bg.getLocation();
-        ProfileDb db = new ProfileDb(context);
-
-        //check if location has changed
-        if(location == null) {
-            Log.d("ServiceMain", "null location");
-            return;
-        }
-
-        double lat = location.getLatitude();
-        double lng = location.getLongitude();
-        if (previousLocation == null) {
-            previousLocation = new Location(location);
-            if(location.getTime() != 0) {
-                db.insertGps(new GpsData(lat, lng, location.getTime()));
-            }
-        } else {
-            if(lat == previousLocation.getLatitude()
-                    && lng == previousLocation.getLongitude()) {
-                //equivalent coordinates, ignore current result
-                Log.d("ServiceMain", "no change to location: " + lat + " " + lng);
-            } else {
-                previousLocation.set(location);
-                if(location.getTime() != 0) {
-                    db.insertGps(new GpsData(lat, lng, location.getTime()));
-                }
-            }
-        }
     }
 
 }

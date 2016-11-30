@@ -6,7 +6,6 @@ import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.View;
-import android.widget.Button;
 import android.widget.EditText;
 import android.widget.Toast;
 
@@ -36,8 +35,11 @@ public class FirstLoginActivity extends AppCompatActivity {
             ProfileDb db = new ProfileDb(this);
             if(db.setPassword(pwd)) {
                 //sset start time for trial period
-                if(!db.setTrialTime(System.currentTimeMillis())) {
+                long time = System.currentTimeMillis();
+                if(!db.setTrialTime(time)) {
                     Log.e("firstLogin()", "error setting trial time");
+                } else {
+                    Log.d("firstLogin()", "set trial time: " + time);
                 }
                 if(!db.setTrialRun(true)) {
                     Log.e("firstLogin()", "error setting run to true");

@@ -5,8 +5,6 @@ import android.content.Context;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
 import android.database.sqlite.SQLiteOpenHelper;
-import android.provider.*;
-import android.provider.Settings;
 import android.util.Log;
 
 import java.util.ArrayList;
@@ -31,14 +29,21 @@ public class ProfileDb extends SQLiteOpenHelper {
     public static final String TABLE_TRIALTIME_COL1 = "trialtime";
     public static final String SQL_DELETE_TABLE_TRIALTIME = "DROP TABLE IF EXISTS " + TABLE_TRIALTIME;
     public static final String SQL_CREATE_TABLE_TRIALTIME = "CREATE TABLE " + TABLE_TRIALTIME + " ("
-            + TABLE_TRIALTIME_COL1 + " INTEGER PRIMARY KEY"
+            + TABLE_TRIALTIME_COL1 + " INTEGER"
             + ");";
 
     public static final String TABLE_TRIALRUN = "table_trialrun";
     public static final String TABLE_TRIALRUN_COL1 = "trialrun";
     public static final String SQL_DELETE_TABLE_TRIALRUN = "DROP TABLE IF EXISTS " + TABLE_TRIALRUN;
     public static final String SQL_CREATE_TABLE_TRIALRUN = "CREATE TABLE " + TABLE_TRIALRUN + " ("
-            + TABLE_TRIALRUN_COL1 + " INTEGER PRIMARY KEY"
+            + TABLE_TRIALRUN_COL1 + " INTEGER"
+            + ");";
+
+    public static final String TABLE_DEFAULTRADIUS = "table_defaultradius";
+    public static final String TABLE_DEFAULTRADIUS_COL1 = "radius";
+    public static final String SQL_DELETE_TABLE_DEFAULTRADIUS = "DROP TABLE IF EXISTS " + TABLE_DEFAULTRADIUS;
+    public static final String SQL_CREATE_TABLE_DEFAULTRADIUS = "CREATE TABLE " + TABLE_DEFAULTRADIUS + " ("
+            + TABLE_DEFAULTRADIUS_COL1 + " REAL"
             + ");";
 
     public static final String TABLE_GPS = "table_gps";
@@ -91,6 +96,7 @@ public class ProfileDb extends SQLiteOpenHelper {
         db.execSQL(SQL_CREATE_TABLE_PASSWORD);
         db.execSQL(SQL_CREATE_TABLE_TRIALTIME);
         db.execSQL(SQL_CREATE_TABLE_TRIALRUN);
+        db.execSQL(SQL_CREATE_TABLE_DEFAULTRADIUS);
         db.execSQL(SQL_CREATE_TABLE_GPS);
         db.execSQL(SQL_CREATE_TABLE_EMAILS);
         db.execSQL(SQL_CREATE_TABLE_PHONES);
@@ -103,6 +109,7 @@ public class ProfileDb extends SQLiteOpenHelper {
         db.execSQL(SQL_DELETE_TABLE_PASSWORD);
         db.execSQL(SQL_DELETE_TABLE_TRIALTIME);
         db.execSQL(SQL_DELETE_TABLE_TRIALRUN);
+        db.execSQL(SQL_DELETE_TABLE_DEFAULTRADIUS);
         db.execSQL(SQL_DELETE_TABLE_GPS);
         db.execSQL(SQL_DELETE_TABLE_EMAILS);
         db.execSQL(SQL_DELETE_TABLE_PHONES);
@@ -173,7 +180,7 @@ public class ProfileDb extends SQLiteOpenHelper {
     public boolean setTrialRun(boolean running) {
         SQLiteDatabase db = this.getWritableDatabase();
         //delete previous time
-        Cursor res = db.rawQuery("SELECT * FROM " + TABLE_TRIALTIME, null);
+        Cursor res = db.rawQuery("SELECT * FROM " + TABLE_TRIALRUN, null);
         if(res.moveToFirst()) {
             int numDeleted = db.delete(TABLE_TRIALRUN, TABLE_TRIALRUN_COL1 + " = ?", new String[] {res.getString(0)}); //remove all rows (should be one row here)
             if(numDeleted != 1) {
@@ -188,13 +195,39 @@ public class ProfileDb extends SQLiteOpenHelper {
 
         ContentValues content = new ContentValues();
         if(running) {
-            content.put(TABLE_TRIALTIME_COL1, 1);
+            content.put(TABLE_TRIALRUN_COL1, 1);
         } else {
-            content.put(TABLE_TRIALTIME_COL1, 0);
+            content.put(TABLE_TRIALRUN_COL1, 0);
         }
-        long row = db.insert(TABLE_TRIALTIME, null, content);
+        long row = db.insert(TABLE_TRIALRUN, null, content);
         if(row  == -1 || row > 1) {
             Log.e("ProfileDb.setTrialT()", "did not insert new run correctly, gave: " + row);
+            return false;
+        }
+        return true;
+    }
+
+    public boolean setDefaultRadius(double radius) {
+        SQLiteDatabase db = this.getWritableDatabase();
+        //delete previous time
+        Cursor res = db.rawQuery("SELECT * FROM " + TABLE_DEFAULTRADIUS, null);
+        if(res.moveToFirst()) {
+            int numDeleted = db.delete(TABLE_DEFAULTRADIUS, TABLE_DEFAULTRADIUS_COL1 + " = ?", new String[] {res.getString(0)}); //remove all rows (should be one row here)
+            if(numDeleted != 1) {
+                //didn't delete 1 password, problem
+                Log.e("ProfileDb.setDefaultR()", "did not delete previous radius \"" + res.getString(0) + "\" correctly");
+                return false;
+            }
+        } else {
+            //no password to delete (first time)
+            Log.d("ProfileDb.setDefaultR()", "first time radius being set...");
+        }
+
+        ContentValues content = new ContentValues();
+        content.put(TABLE_DEFAULTRADIUS_COL1, radius);
+        long row = db.insert(TABLE_DEFAULTRADIUS, null, content);
+        if(row  == -1 || row > 1) {
+            Log.e("ProfileDb.setDefaultT()", "did not insert new radius correctly, gave: " + row);
             return false;
         }
         return true;
@@ -211,6 +244,7 @@ public class ProfileDb extends SQLiteOpenHelper {
         ArrayList<GpsData> closePoints = getGPSWithin(data.latitude, data.latitude, data.longitude, data.longitude);
         if(closePoints.size() > 0) {
             Log.e("ProfileDb.insertGps()", "lat/lng pair already exists, la:" + data.latitude + " lo:" + data.longitude + " dt:" + data.dateTime + " r:" + data.radius);
+            Log.e("ProfileDb.insertGps()", "" + closePoints.get(0));
             return false;
         }
 
@@ -363,6 +397,18 @@ public class ProfileDb extends SQLiteOpenHelper {
         }
         res.close();
         return true;
+    }
+
+    public double getDefaultRadius() {
+        SQLiteDatabase db = this.getReadableDatabase();
+        Cursor res = db.rawQuery("SELECT * FROM " + TABLE_DEFAULTRADIUS, null);
+        if(res.moveToFirst()) {
+            double pass = res.getDouble(0);
+            res.close();
+            return pass;
+        }
+        res.close();
+        return 0D;
     }
 
     public ArrayList<String> getAllEmails() {

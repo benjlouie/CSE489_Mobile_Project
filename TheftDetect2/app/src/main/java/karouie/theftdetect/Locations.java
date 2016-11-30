@@ -1,21 +1,20 @@
 package karouie.theftdetect;
 
 import android.content.Context;
-import android.location.Location;
-import android.location.LocationManager;
 import android.os.Handler;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.View;
-import android.widget.EditText;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import java.util.ArrayList;
 
 public class Locations extends AppCompatActivity {
 
     private long locationEntries;
+    private long locationOutsideEntries;
     final Handler h = new Handler();
     final int delay = 5000; //milliseconds
     final Runnable runnable = new Runnable() {
@@ -42,78 +41,71 @@ public class Locations extends AppCompatActivity {
         h.removeCallbacks(runnable);
     }
 
-    public void addLocation(View view) {
-        EditText latitude = (EditText) findViewById(R.id.txt_latitude);
-        EditText longitude = (EditText) findViewById(R.id.txt_longitude);
-        double lat = Double.parseDouble(latitude.getText().toString());
-        double lon = Double.parseDouble(longitude.getText().toString());
-        ProfileDb db = new ProfileDb(this);
-
-        if(db.insertGps(new GpsData(lat, lon, System.currentTimeMillis(), 0))) {
-            latitude.setText("");
-            longitude.setText("");
-            Log.d("Locations.addLocation", "inserted location correctly");
-            updateLocations();
-        } else {
-            Log.d("Locations.addLocation", "failed to insert location");
-        }
-    }
-
-    public void removeLocation(View view) {
-        EditText latitude = (EditText) findViewById(R.id.txt_latitude);
-        EditText longitude = (EditText) findViewById(R.id.txt_longitude);
-        double lat = Double.parseDouble(latitude.getText().toString());
-        double lon = Double.parseDouble(longitude.getText().toString());
-        ProfileDb db = new ProfileDb(this);
-
-        if(db.deleteGps(lat, lon) > 0) {
-            latitude.setText("");
-            longitude.setText("");
-            Log.d("Locations.addLocation", "deleted location correctly");
-            updateLocations();
-        } else {
-            Log.d("Locations.addLocation", "failed to delete location");
-        }
-
-    }
-
-    public void getPoints(View view) {
-        EditText latitude1 = (EditText) findViewById(R.id.txt_lat1);
-        EditText latitude2 = (EditText) findViewById(R.id.txt_lat2);
-        EditText longitude1 = (EditText) findViewById(R.id.txt_lon1);
-        EditText longitude2 = (EditText) findViewById(R.id.txt_lon2);
-        double lat1 = Double.parseDouble(latitude1.getText().toString());
-        double lat2 = Double.parseDouble(latitude2.getText().toString());
-        double lon1 = Double.parseDouble(longitude1.getText().toString());
-        double lon2 = Double.parseDouble(longitude2.getText().toString());
-        ProfileDb db = new ProfileDb(this);
-
-        ArrayList<GpsData> points = db.getGPSWithin(lat1, lat2, lon1, lon2);
-        Log.d("Locations.getPoints", "results: " + points.size() + " items");
-
-        TextView results = (TextView) findViewById(R.id.txtv_resultList);
-        StringBuilder sb = new StringBuilder(400);
-        for(GpsData data : points) {
-            sb.append("" + data.latitude + "\t" + data.longitude + "\n");
-        }
-        results.setText(sb.toString());
-    }
-
     public void updateLocations() {
         ProfileDb db = new ProfileDb(this);
+
+        //update gps location lists
         ArrayList<GpsData> points = db.getAllGps();
-        if(points.size() == locationEntries) {
+        ArrayList<GpsData> pointsOutside = db.getAllGpsOutside();
+        if(points.size() == locationEntries && pointsOutside.size() == locationOutsideEntries) {
             //no need to update
-            Log.d("Locations.updatelocs", "no change in location Entries");
+            Log.d("Locations.updateLocs", "results: " + points.size() + ", " + pointsOutside.size() + " items");
             return;
         }
         locationEntries = points.size();
+        locationOutsideEntries = points.size();
 
         TextView locations = (TextView) findViewById(R.id.txtv_locationList);
+        TextView outsideLocations = (TextView) findViewById(R.id.txtv_locationOutsideList);
         StringBuilder sb = new StringBuilder(400);
         for(GpsData data : points) {
-            sb.append("" + data.latitude + "\t" + data.longitude + "\t" + data.dateTime + "\n");
+            sb.append("" + data.latitude + " " + data.longitude + " " + data.radius + "\n");
         }
-        locations.setText(sb.toString());
+        if(points.size() > 0) {
+            locations.setText(sb.toString());
+        } else {
+            locations.setText("GPS Points");
+        }
+
+        sb = new StringBuilder(400);
+        for(GpsData data : pointsOutside) {
+            sb.append("" + data.latitude + " " + data.longitude + "\n");
+        }
+        if(pointsOutside.size() > 0) {
+            outsideLocations.setText(sb.toString());
+        } else {
+            outsideLocations.setText("GPS Outside Points");
+        }
+
+        //update thisWasMe button and text
+        TextView textWasMe = (TextView) findViewById(R.id.txtv_pointWasMe);
+        if(pointsOutside.size() > 0) {
+            GpsData point = pointsOutside.get(0);
+            textWasMe.setText("" + point.latitude + " " + point.longitude);
+        } else {
+            textWasMe.setText("selected point");
+        }
+    }
+
+    public void thisWasMe(View view) {
+        ProfileDb db = new ProfileDb(this);
+        Context context = this.getApplicationContext();
+        ArrayList<GpsData> pointsOutside = db.getAllGpsOutside();
+
+        if(db.getTrialRun()) {
+            //during trial, don't do it
+            Toast.makeText(context, "Cannot add during trial period", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        //add top point to main gpsList
+        if(pointsOutside.size() > 0) {
+            GpsData point = pointsOutside.get(0);
+            point.radius = db.getDefaultRadius();
+            db.insertGps(point);
+            db.deleteGpsOutside(point.latitude, point.longitude);
+        } else {
+            Toast.makeText(context, "No point selected", Toast.LENGTH_SHORT).show();
+        }
     }
 }

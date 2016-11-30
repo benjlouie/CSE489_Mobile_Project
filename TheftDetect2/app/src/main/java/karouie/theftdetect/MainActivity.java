@@ -1,6 +1,5 @@
 package karouie.theftdetect;
 
-import android.Manifest;
 import android.content.Context;
 import android.content.Intent;
 import android.support.v7.app.AppCompatActivity;
